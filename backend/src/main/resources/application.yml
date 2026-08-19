@@ -20,6 +20,11 @@ spring:
     redis:
       host: localhost
       port: 6379
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:dummy-openai-key}
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:dummy-anthropic-key}
 
 server:
   port: 8080
