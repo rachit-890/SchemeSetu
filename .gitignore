@@ -14,7 +14,9 @@ frontend/node_modules/
 frontend/dist/
 **/dist/
 frontend/dist-ssr/
-*.local
+# Environment files
+.env
+*.env
 .env.local
 .env.*.local
 npm-debug.log*
