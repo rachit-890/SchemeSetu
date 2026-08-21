@@ -1,11 +1,17 @@
 package com.rachitkushwaha.schemesetu.service;
 
 import com.rachitkushwaha.schemesetu.dto.ExtractedRuleDto;
+import com.rachitkushwaha.schemesetu.dto.IngestionSummaryDto;
 import com.rachitkushwaha.schemesetu.dto.RuleValidationResult;
+import com.rachitkushwaha.schemesetu.entity.EligibilityRule;
+import com.rachitkushwaha.schemesetu.entity.Scheme;
+import com.rachitkushwaha.schemesetu.repository.EligibilityRuleRepository;
+import com.rachitkushwaha.schemesetu.repository.SchemeRepository;
 import org.springframework.ai.anthropic.AnthropicChatModel;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -14,10 +20,20 @@ public class SchemeIngestionService {
 
     private final ChatClient chatClient;
     private final RuleValidator ruleValidator;
+    private final SchemeRepository schemeRepository;
+    private final EligibilityRuleRepository eligibilityRuleRepository;
+    private final SchemeEmbeddingService schemeEmbeddingService;
 
-    public SchemeIngestionService(AnthropicChatModel anthropicChatModel, RuleValidator ruleValidator) {
+    public SchemeIngestionService(AnthropicChatModel anthropicChatModel,
+                                  RuleValidator ruleValidator,
+                                  SchemeRepository schemeRepository,
+                                  EligibilityRuleRepository eligibilityRuleRepository,
+                                  SchemeEmbeddingService schemeEmbeddingService) {
         this.chatClient = ChatClient.builder(anthropicChatModel).build();
         this.ruleValidator = ruleValidator;
+        this.schemeRepository = schemeRepository;
+        this.eligibilityRuleRepository = eligibilityRuleRepository;
+        this.schemeEmbeddingService = schemeEmbeddingService;
     }
 
     public List<ExtractedRuleDto> extractEligibilityRules(String schemeText) {
@@ -47,5 +63,35 @@ public class SchemeIngestionService {
 
     public RuleValidationResult validateRules(List<ExtractedRuleDto> extractedRules) {
         return ruleValidator.validateRules(extractedRules);
+    }
+
+    @Transactional
+    public IngestionSummaryDto ingestSchemeRules(Long schemeId, String schemeText) {
+        Scheme scheme = schemeRepository.findById(schemeId)
+                .orElseThrow(() -> new IllegalArgumentException("Scheme not found with ID: " + schemeId));
+
+        List<ExtractedRuleDto> rawExtractedRules = extractEligibilityRules(schemeText);
+        RuleValidationResult validationResult = validateRules(rawExtractedRules);
+
+        // Map ONLY valid ExtractedRuleDto objects to EligibilityRule entities
+        List<EligibilityRule> rulesToPersist = validationResult.validRules().stream()
+                .map(dto -> {
+                    EligibilityRule rule = new EligibilityRule();
+                    rule.setScheme(scheme);
+                    rule.setField(dto.field());
+                    rule.setOperator(dto.operator());
+                    rule.setValue(dto.value());
+                    rule.setStatus("PENDING_REVIEW"); // Explicitly set status to PENDING_REVIEW
+                    return rule;
+                })
+                .toList();
+
+        List<EligibilityRule> persistedRules = eligibilityRuleRepository.saveAll(rulesToPersist);
+
+        // Generate and store embeddings for the scheme text fields
+        int embeddedChunkCount = schemeEmbeddingService.embedScheme(scheme);
+
+        // Note: Rejected rules are NOT saved to the database anywhere; they are only logged and returned in the summary.
+        return new IngestionSummaryDto(schemeId, persistedRules.size(), validationResult.rejectedRules(), embeddedChunkCount);
     }
 }
