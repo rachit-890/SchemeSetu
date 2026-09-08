@@ -12,7 +12,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.ai.document.Document;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -72,7 +74,7 @@ class QuestionnaireServiceTest {
         when(schemeService.getAllSchemes()).thenReturn(List.of(scheme));
         when(ruleMatchingEngine.findMatchingSchemes(any(CitizenProfile.class), anyList())).thenReturn(List.of(match));
         when(retrievalService.retrieveContext(eq(1L), anyInt())).thenReturn(List.of(new Document("doc")));
-        when(explanationService.generateExplanation(any(), any(), anyList(), anyList()))
+        when(explanationService.generateExplanation(any(), any(), anyList(), anyList(), anyString()))
                 .thenReturn(new ExplanationDto("Qualifies", List.of("Apply online"), false));
 
         // Start session -> gets Question 1 (age)
@@ -189,5 +191,105 @@ class QuestionnaireServiceTest {
                 questionnaireService.submitAnswer(104L, new AnswerRequest("age", "25"), "en")
         );
         assertTrue(ex.getMessage().contains("QuestionnaireSession is already completed for id: 104"));
+    }
+
+    @Test
+    void farmerWalkthrough_inHindi_completesWithHindiTranslatedScheme() {
+        QuestionnaireSession session = new QuestionnaireSession();
+        session.setId(105L);
+        session.setStatus("IN_PROGRESS");
+
+        when(sessionRepository.save(any(QuestionnaireSession.class))).thenAnswer(invocation -> {
+            QuestionnaireSession s = invocation.getArgument(0);
+            if (s.getId() == null) s.setId(105L);
+            return s;
+        });
+        when(sessionRepository.findById(105L)).thenReturn(Optional.of(session));
+
+        Scheme scheme = new Scheme();
+        scheme.setId(1L);
+        scheme.setName("PM Kisan");
+        scheme.setDescription("Financial support for farmers");
+        scheme.setApplicationProcess("Apply at pmkisan.gov.in");
+
+        Map<String, Map<String, String>> translations = new HashMap<>();
+        translations.put("hi", Map.of(
+                "name", "पीएम किसान सम्मान निधि",
+                "description", "किसानों के लिए वित्तीय सहायता",
+                "applicationProcess", "pmkisan.gov.in पर आवेदन करें"
+        ));
+        scheme.setTranslations(translations);
+
+        RuleMatchingEngine.SchemeMatch match = new RuleMatchingEngine.SchemeMatch(scheme, List.of());
+
+        when(schemeService.getAllSchemes()).thenReturn(List.of(scheme));
+        when(ruleMatchingEngine.findMatchingSchemes(any(CitizenProfile.class), anyList())).thenReturn(List.of(match));
+        when(retrievalService.retrieveContext(eq(1L), anyInt())).thenReturn(List.of(new Document("doc")));
+        when(explanationService.generateExplanation(any(), any(), anyList(), anyList(), anyString()))
+                .thenReturn(new ExplanationDto("पात्र हैं", List.of("ऑनलाइन आवेदन करें"), false));
+
+        questionnaireService.submitAnswer(105L, new AnswerRequest("age", "30"), "hi");
+        questionnaireService.submitAnswer(105L, new AnswerRequest("gender", "Male"), "hi");
+        questionnaireService.submitAnswer(105L, new AnswerRequest("state", "UP"), "hi");
+        questionnaireService.submitAnswer(105L, new AnswerRequest("casteCategory", "OBC"), "hi");
+        questionnaireService.submitAnswer(105L, new AnswerRequest("occupation", "FARMER"), "hi");
+        questionnaireService.submitAnswer(105L, new AnswerRequest("monthlyIncome", "15000"), "hi");
+        QuestionnaireAnswerResponse r7 = questionnaireService.submitAnswer(105L, new AnswerRequest("landHoldingAcres", "2.5"), "hi");
+
+        assertEquals("COMPLETED", r7.status());
+        assertNotNull(r7.results());
+        assertEquals(1, r7.results().size());
+
+        SchemeMatchResponse resultScheme = r7.results().get(0);
+        assertEquals("पीएम किसान सम्मान निधि", resultScheme.schemeName());
+        assertEquals("किसानों के लिए वित्तीय सहायता", resultScheme.description());
+        assertEquals("pmkisan.gov.in पर आवेदन करें", resultScheme.applicationProcess());
+        assertTrue(resultScheme.translationAvailable());
+    }
+
+    @Test
+    void farmerWalkthrough_inHindi_fallsBackToEnglishWhenNoTranslation() {
+        QuestionnaireSession session = new QuestionnaireSession();
+        session.setId(106L);
+        session.setStatus("IN_PROGRESS");
+
+        when(sessionRepository.save(any(QuestionnaireSession.class))).thenAnswer(invocation -> {
+            QuestionnaireSession s = invocation.getArgument(0);
+            if (s.getId() == null) s.setId(106L);
+            return s;
+        });
+        when(sessionRepository.findById(106L)).thenReturn(Optional.of(session));
+
+        Scheme scheme = new Scheme();
+        scheme.setId(2L);
+        scheme.setName("UP Skill Development Mission");
+        scheme.setDescription("Free skill training for youth.");
+        scheme.setApplicationProcess("Register at upsdm.gov.in");
+        scheme.setTranslations(new HashMap<>()); // No "hi" translation
+
+        RuleMatchingEngine.SchemeMatch match = new RuleMatchingEngine.SchemeMatch(scheme, List.of());
+
+        when(schemeService.getAllSchemes()).thenReturn(List.of(scheme));
+        when(ruleMatchingEngine.findMatchingSchemes(any(CitizenProfile.class), anyList())).thenReturn(List.of(match));
+        when(retrievalService.retrieveContext(eq(2L), anyInt())).thenReturn(List.of(new Document("doc")));
+        when(explanationService.generateExplanation(any(), any(), anyList(), anyList(), anyString()))
+                .thenReturn(new ExplanationDto("पात्र हैं", List.of("ऑनलाइन आवेदन करें"), false));
+
+        questionnaireService.submitAnswer(106L, new AnswerRequest("age", "20"), "hi");
+        questionnaireService.submitAnswer(106L, new AnswerRequest("gender", "Female"), "hi");
+        questionnaireService.submitAnswer(106L, new AnswerRequest("state", "UP"), "hi");
+        questionnaireService.submitAnswer(106L, new AnswerRequest("casteCategory", "GENERAL"), "hi");
+        questionnaireService.submitAnswer(106L, new AnswerRequest("occupation", "Student"), "hi");
+        QuestionnaireAnswerResponse r6 = questionnaireService.submitAnswer(106L, new AnswerRequest("monthlyIncome", "10000"), "hi");
+
+        assertEquals("COMPLETED", r6.status());
+        assertNotNull(r6.results());
+        assertEquals(1, r6.results().size());
+
+        SchemeMatchResponse resultScheme = r6.results().get(0);
+        assertEquals("UP Skill Development Mission", resultScheme.schemeName());
+        assertEquals("Free skill training for youth.", resultScheme.description());
+        assertEquals("Register at upsdm.gov.in", resultScheme.applicationProcess());
+        assertFalse(resultScheme.translationAvailable());
     }
 }

@@ -42,7 +42,8 @@ public class CitizenSchemeController {
             @RequestParam(required = false) String casteCategory,
             @RequestParam(required = false) String occupation,
             @RequestParam(required = false) String gender,
-            @RequestParam(required = false) Double landHoldingAcres
+            @RequestParam(required = false) Double landHoldingAcres,
+            @RequestParam(name = "lang", defaultValue = "en") String lang
     ) {
         CitizenProfile profile = new CitizenProfile(age, monthlyIncome, state, casteCategory, occupation, gender, landHoldingAcres);
         List<Scheme> candidateSchemes = schemeService.getAllSchemes();
@@ -53,21 +54,13 @@ public class CitizenSchemeController {
         for (RuleMatchingEngine.SchemeMatch match : matches) {
             Scheme scheme = match.scheme();
             List<Document> docs = retrievalService.retrieveContext(scheme.getId(), 5);
-            ExplanationDto explanation = explanationService.generateExplanation(scheme, profile, match.matchedRules(), docs);
+            ExplanationDto explanation = explanationService.generateExplanation(scheme, profile, match.matchedRules(), docs, lang);
 
             List<String> matchedCriteria = match.matchedRules().stream()
                     .map(r -> r.getField() + " " + r.getOperator() + " " + r.getValue())
                     .toList();
 
-            responses.add(new SchemeMatchResponse(
-                    scheme.getId(),
-                    scheme.getName(),
-                    scheme.getCategory(),
-                    scheme.getIssuingBody(),
-                    scheme.getSourceUrl(),
-                    matchedCriteria,
-                    explanation
-            ));
+            responses.add(SchemeMatchResponse.from(scheme, matchedCriteria, explanation, lang));
         }
 
         return ResponseEntity.ok(responses);

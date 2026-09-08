@@ -21,41 +21,24 @@ public class SchemeEmbeddingService {
         this.vectorStore = vectorStore;
     }
 
-    public int embedScheme(Scheme scheme) {
-        if (scheme == null) {
+    public int embedScheme(Scheme scheme, String rawSourceText) {
+        if (scheme == null || rawSourceText == null || rawSourceText.isBlank()) {
             return 0;
         }
 
         List<Document> documents = new ArrayList<>();
+        List<String> chunks = chunkText(rawSourceText);
 
-        if (scheme.getDescription() != null && !scheme.getDescription().isBlank()) {
-            List<String> chunks = chunkText(scheme.getDescription());
-            for (int i = 0; i < chunks.size(); i++) {
-                documents.add(new Document(
-                        chunks.get(i),
-                        Map.of(
-                                "scheme_id", scheme.getId() != null ? scheme.getId() : 0L,
-                                "scheme_name", scheme.getName() != null ? scheme.getName() : "",
-                                "field_type", "description",
-                                "chunk_index", i
-                        )
-                ));
-            }
-        }
-
-        if (scheme.getApplicationProcess() != null && !scheme.getApplicationProcess().isBlank()) {
-            List<String> chunks = chunkText(scheme.getApplicationProcess());
-            for (int i = 0; i < chunks.size(); i++) {
-                documents.add(new Document(
-                        chunks.get(i),
-                        Map.of(
-                                "scheme_id", scheme.getId() != null ? scheme.getId() : 0L,
-                                "scheme_name", scheme.getName() != null ? scheme.getName() : "",
-                                "field_type", "application_process",
-                                "chunk_index", i
-                        )
-                ));
-            }
+        for (int i = 0; i < chunks.size(); i++) {
+            documents.add(new Document(
+                    chunks.get(i),
+                    Map.of(
+                            "scheme_id", scheme.getId() != null ? scheme.getId() : 0L,
+                            "scheme_name", scheme.getName() != null ? scheme.getName() : "",
+                            "field_type", "source_text",
+                            "chunk_index", i
+                    )
+            ));
         }
 
         if (!documents.isEmpty()) {

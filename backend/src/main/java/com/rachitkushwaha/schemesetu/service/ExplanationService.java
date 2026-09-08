@@ -7,7 +7,7 @@ import com.rachitkushwaha.schemesetu.entity.Scheme;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.ai.anthropic.AnthropicChatModel;
+import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.document.Document;
 import org.springframework.stereotype.Service;
@@ -23,8 +23,8 @@ public class ExplanationService {
     private final ChatClient chatClient;
 
     @Autowired
-    public ExplanationService(AnthropicChatModel anthropicChatModel) {
-        this.chatClient = ChatClient.builder(anthropicChatModel).build();
+    public ExplanationService(ChatModel chatModel) {
+        this.chatClient = ChatClient.builder(chatModel).build();
     }
 
     public ExplanationService(ChatClient chatClient) {
@@ -32,9 +32,21 @@ public class ExplanationService {
     }
 
     public ExplanationDto generateExplanation(Scheme scheme, CitizenProfile profile, List<EligibilityRule> matchedRules, List<Document> retrievedDocs) {
+        return generateExplanation(scheme, profile, matchedRules, retrievedDocs, "en");
+    }
+
+    public ExplanationDto generateExplanation(Scheme scheme, CitizenProfile profile, List<EligibilityRule> matchedRules, List<Document> retrievedDocs, String lang) {
+        String langKey = (lang != null && !lang.isBlank()) ? lang.trim().toLowerCase() : "en";
+
         if (retrievedDocs == null || retrievedDocs.isEmpty()) {
-            return new ExplanationDto("No information available for this scheme.", List.of(), true);
+            String msg = "hi".equals(langKey)
+                    ? "इस योजना के लिए कोई जानकारी उपलब्ध नहीं है।"
+                    : "No information available for this scheme.";
+            return new ExplanationDto(msg, List.of(), true);
         }
+
+        String targetLanguage = "hi".equals(langKey) ? "Hindi" : "English";
+        String effectiveLangKey = "hi".equals(langKey) ? "hi" : "en";
 
         String schemeName = scheme != null && scheme.getName() != null ? scheme.getName() : "Unknown Scheme";
         String schemeCategory = scheme != null && scheme.getCategory() != null ? scheme.getCategory() : "N/A";
@@ -49,6 +61,10 @@ public class ExplanationService {
         String userPrompt = """
             You are an expert assistant for Indian government welfare schemes (SchemeSetu platform).
             Your task is to explain to a citizen why they qualify for a specific scheme and detail the application process based ONLY on the provided context.
+
+            LANGUAGE INSTRUCTION:
+            - You MUST generate your entire explanation, reasoning, and application steps in %s (language code: %s).
+            - Keep all specific numbers, currency amounts (e.g. ₹30,000), and official portal URLs (e.g. scholarship.up.gov.in) accurate and intact.
 
             CRITICAL GROUNDING INSTRUCTIONS:
             - You must generate your response using ONLY the provided retrieved context below.
@@ -67,8 +83,8 @@ public class ExplanationService {
             %s
 
             Instructions:
-            Using ONLY the context provided above, explain in plain language why this citizen qualifies for this scheme (for the "reasoning" field) and list the sequential application steps as a list of strings (for the "applicationSteps" field).
-            """.formatted(schemeName, schemeCategory, issuingBody, matchedCriteriaText, contextText);
+            Using ONLY the context provided above, explain in %s why this citizen qualifies for this scheme (for the "reasoning" field) and list the sequential application steps in %s as a list of strings (for the "applicationSteps" field).
+            """.formatted(targetLanguage, effectiveLangKey, schemeName, schemeCategory, issuingBody, matchedCriteriaText, contextText, targetLanguage, targetLanguage);
 
         try {
             ExplanationDto result = chatClient.prompt()
@@ -84,12 +100,15 @@ public class ExplanationService {
                     scheme != null ? scheme.getId() : "null", ex.getMessage());
         }
 
-        return buildRuleBasedFallback(matchedRules, profile);
+        return buildRuleBasedFallback(matchedRules, profile, langKey);
     }
 
-    private ExplanationDto buildRuleBasedFallback(List<EligibilityRule> matchedRules, CitizenProfile profile) {
+    private ExplanationDto buildRuleBasedFallback(List<EligibilityRule> matchedRules, CitizenProfile profile, String lang) {
+        String langKey = (lang != null && !lang.isBlank()) ? lang.trim().toLowerCase() : "en";
         String details = formatMatchedRules(matchedRules, profile);
-        String reasoning = "You appear to qualify based on: " + details + ".";
+        String reasoning = "hi".equals(langKey)
+                ? "आप इन पात्रता नियमों के आधार पर योग्य प्रतीत होते हैं: " + details + "।"
+                : "You appear to qualify based on: " + details + ".";
         return new ExplanationDto(reasoning, List.of(), true);
     }
 

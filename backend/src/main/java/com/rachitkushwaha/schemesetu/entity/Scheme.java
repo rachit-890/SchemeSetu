@@ -1,9 +1,13 @@
 package com.rachitkushwaha.schemesetu.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Entity
 @Table(name = "schemes")
@@ -39,6 +43,10 @@ public class Scheme {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "translations", columnDefinition = "jsonb")
+    private Map<String, Map<String, String>> translations = new HashMap<>();
 
     @OneToMany(mappedBy = "scheme", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<EligibilityRule> rules = new ArrayList<>();
@@ -159,6 +167,14 @@ public class Scheme {
 
     public void setRules(List<EligibilityRule> rules) {
         this.rules = rules;
+    }
+
+    public Map<String, Map<String, String>> getTranslations() {
+        return translations;
+    }
+
+    public void setTranslations(Map<String, Map<String, String>> translations) {
+        this.translations = translations;
     }
 
     public void addRule(EligibilityRule rule) {

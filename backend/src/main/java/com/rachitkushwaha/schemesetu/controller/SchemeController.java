@@ -7,6 +7,7 @@ import com.rachitkushwaha.schemesetu.entity.EligibilityRule;
 import com.rachitkushwaha.schemesetu.entity.Scheme;
 import com.rachitkushwaha.schemesetu.service.SchemeIngestionService;
 import com.rachitkushwaha.schemesetu.service.SchemeService;
+import com.rachitkushwaha.schemesetu.service.SchemeTranslationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,10 +21,14 @@ public class SchemeController {
 
     private final SchemeService schemeService;
     private final SchemeIngestionService schemeIngestionService;
+    private final SchemeTranslationService schemeTranslationService;
 
-    public SchemeController(SchemeService schemeService, SchemeIngestionService schemeIngestionService) {
+    public SchemeController(SchemeService schemeService,
+                            SchemeIngestionService schemeIngestionService,
+                            SchemeTranslationService schemeTranslationService) {
         this.schemeService = schemeService;
         this.schemeIngestionService = schemeIngestionService;
+        this.schemeTranslationService = schemeTranslationService;
     }
 
     @GetMapping
@@ -75,6 +80,25 @@ public class SchemeController {
             return ResponseEntity.notFound().build();
         } catch (Exception e) {
             String errorMsg = e.getMessage() != null ? e.getMessage() : "Ingestion processing failed";
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", errorMsg));
+        }
+    }
+
+    @PostMapping("/{id}/translate")
+    public ResponseEntity<?> translateScheme(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "hi") String lang) {
+        if (lang != null && !lang.isBlank() && !"hi".equalsIgnoreCase(lang.trim())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Unsupported translation language: '" + lang + "'. Only 'hi' (Hindi) translation is supported."));
+        }
+        try {
+            Scheme translated = schemeTranslationService.translateAndStoreScheme(id, lang);
+            return ResponseEntity.ok(translated);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            String errorMsg = e.getMessage() != null ? e.getMessage() : "Translation failed";
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", errorMsg));
         }

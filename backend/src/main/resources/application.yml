@@ -22,29 +22,31 @@ spring:
       host: localhost
       port: 6379
   ai:
+    model:
+      chat: google-genai
     retry:
       max-attempts: 2
       back-off:
         initial-interval: 1000ms
         max-interval: 2000ms
         multiplier: 2.0
-    anthropic:
-      api-key: ${ANTHROPIC_API_KEY:dummy-anthropic-key}
-      base-url: https://capi.aerolink.lat
-      chat:
-        options:
-          model: claude-sonnet-4-6
-    openai:
-      api-key: ${OPENAI_API_KEY:dummy-openai-key}
-      base-url: https://cgapi.aerolink.lat
-      embedding:
-        options:
-          model: text-embedding-3-small
+    google:
+      genai:
+        api-key: ${GEMINI_API_KEY}
+        chat:
+          options:
+            model: gemini-3.6-flash
+        embedding:
+          api-key: ${GEMINI_API_KEY}
+          text:
+            model: gemini-embedding-001
+            dimensions: 768
     vectorstore:
       pgvector:
         index-type: HNSW
         distance-type: COSINE_DISTANCE
-        dimensions: 1536
+        dimensions: 768
+        initialize-schema: true
 
 server:
   port: 8080

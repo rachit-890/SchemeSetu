@@ -118,7 +118,7 @@ public class QuestionnaireService {
             sessionRepository.save(session);
 
             CitizenProfile profile = buildCitizenProfile(updatedAnswersMap);
-            List<SchemeMatchResponse> matchResults = executeSchemeMatchingPipeline(profile);
+            List<SchemeMatchResponse> matchResults = executeSchemeMatchingPipeline(profile, lang);
 
             return new QuestionnaireAnswerResponse(session.getId(), session.getStatus(), null, matchResults);
         }
@@ -179,27 +179,24 @@ public class QuestionnaireService {
         );
     }
 
-    private List<SchemeMatchResponse> executeSchemeMatchingPipeline(CitizenProfile profile) {
+    private List<SchemeMatchResponse> executeSchemeMatchingPipeline(CitizenProfile profile, String lang) {
         List<Scheme> candidateSchemes = schemeService.getAllSchemes();
         List<RuleMatchingEngine.SchemeMatch> matches = ruleMatchingEngine.findMatchingSchemes(profile, candidateSchemes);
 
         return matches.stream().map(match -> {
             Scheme scheme = match.scheme();
             List<Document> docs = retrievalService.retrieveContext(scheme.getId(), 5);
-            ExplanationDto explanation = explanationService.generateExplanation(scheme, profile, match.matchedRules(), docs);
+            ExplanationDto explanation = explanationService.generateExplanation(scheme, profile, match.matchedRules(), docs, lang);
 
             List<String> matchedCriteriaStrings = match.matchedRules().stream()
                     .map(r -> r.getField() + " " + r.getOperator() + " " + r.getValue())
                     .toList();
 
-            return new SchemeMatchResponse(
-                    scheme.getId(),
-                    scheme.getName(),
-                    scheme.getCategory(),
-                    scheme.getIssuingBody(),
-                    scheme.getSourceUrl(),
+            return SchemeMatchResponse.from(
+                    scheme,
                     matchedCriteriaStrings,
-                    explanation
+                    explanation,
+                    lang
             );
         }).toList();
     }

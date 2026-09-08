@@ -24,55 +24,62 @@ class SchemeEmbeddingServiceTest {
     }
 
     @Test
-    void embedScheme_withDescriptionAndApplicationProcess_chunksAndCallsVectorStoreAdd() {
+    void embedScheme_withRawSourceText_chunksAndCallsVectorStoreAdd() {
         Scheme mockScheme = new Scheme(
                 "Mukhyamantri Kanya Vidyadhan",
-                "Financial assistance for girl students.\n\nMust belong to economically weaker sections.",
+                "Financial assistance for girl students.",
                 "SCHOLARSHIP",
                 "UP Govt",
                 "http://example.com",
-                "Visit portal scholarship.up.gov.in.\n\nFill application form online.",
+                "Visit portal scholarship.up.gov.in.",
                 "ACTIVE"
         );
         mockScheme.setId(100L);
 
-        int chunkCount = schemeEmbeddingService.embedScheme(mockScheme);
+        String rawSourceText = "Financial assistance for girl students in Uttar Pradesh.\n\n" +
+                "Applicants must have passed 12th standard and family income below 20000 per month.\n\n" +
+                "Apply online through the scholarship portal or visit nearest CSC.";
 
-        assertEquals(4, chunkCount);
+        int chunkCount = schemeEmbeddingService.embedScheme(mockScheme, rawSourceText);
+
+        assertEquals(3, chunkCount);
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<Document>> captor = ArgumentCaptor.forClass(List.class);
         verify(vectorStore).add(captor.capture());
 
         List<Document> documents = captor.getValue();
-        assertEquals(4, documents.size());
+        assertEquals(3, documents.size());
 
         Document doc0 = documents.get(0);
-        assertEquals("Financial assistance for girl students.", doc0.getText());
+        assertEquals("Financial assistance for girl students in Uttar Pradesh.", doc0.getText());
         assertEquals(100L, doc0.getMetadata().get("scheme_id"));
         assertEquals("Mukhyamantri Kanya Vidyadhan", doc0.getMetadata().get("scheme_name"));
-        assertEquals("description", doc0.getMetadata().get("field_type"));
+        assertEquals("source_text", doc0.getMetadata().get("field_type"));
         assertEquals(0, doc0.getMetadata().get("chunk_index"));
 
         Document doc1 = documents.get(1);
-        assertEquals("Must belong to economically weaker sections.", doc1.getText());
-        assertEquals("description", doc1.getMetadata().get("field_type"));
+        assertEquals("Applicants must have passed 12th standard and family income below 20000 per month.", doc1.getText());
+        assertEquals(100L, doc1.getMetadata().get("scheme_id"));
+        assertEquals("source_text", doc1.getMetadata().get("field_type"));
         assertEquals(1, doc1.getMetadata().get("chunk_index"));
 
         Document doc2 = documents.get(2);
-        assertEquals("Visit portal scholarship.up.gov.in.", doc2.getText());
-        assertEquals("application_process", doc2.getMetadata().get("field_type"));
-        assertEquals(0, doc2.getMetadata().get("chunk_index"));
+        assertEquals("Apply online through the scholarship portal or visit nearest CSC.", doc2.getText());
+        assertEquals(100L, doc2.getMetadata().get("scheme_id"));
+        assertEquals("source_text", doc2.getMetadata().get("field_type"));
+        assertEquals(2, doc2.getMetadata().get("chunk_index"));
     }
 
     @Test
     void embedScheme_whenNullOrEmptyFields_returnsZeroAndDoesNotCallVectorStore() {
-        Scheme emptyScheme = new Scheme("Empty Scheme", null, "SUBSIDY", "Govt", "http://example.com", "   ", "ACTIVE");
-        emptyScheme.setId(101L);
+        Scheme mockScheme = new Scheme("Empty Scheme", null, "SUBSIDY", "Govt", "http://example.com", "   ", "ACTIVE");
+        mockScheme.setId(101L);
 
-        int chunkCount = schemeEmbeddingService.embedScheme(emptyScheme);
+        assertEquals(0, schemeEmbeddingService.embedScheme(mockScheme, null));
+        assertEquals(0, schemeEmbeddingService.embedScheme(mockScheme, "   "));
+        assertEquals(0, schemeEmbeddingService.embedScheme(null, "some text"));
 
-        assertEquals(0, chunkCount);
         verify(vectorStore, never()).add(any());
     }
 }

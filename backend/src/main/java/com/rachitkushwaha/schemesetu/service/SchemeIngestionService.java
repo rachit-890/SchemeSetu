@@ -7,7 +7,7 @@ import com.rachitkushwaha.schemesetu.entity.EligibilityRule;
 import com.rachitkushwaha.schemesetu.entity.Scheme;
 import com.rachitkushwaha.schemesetu.repository.EligibilityRuleRepository;
 import com.rachitkushwaha.schemesetu.repository.SchemeRepository;
-import org.springframework.ai.anthropic.AnthropicChatModel;
+import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
@@ -24,12 +24,12 @@ public class SchemeIngestionService {
     private final EligibilityRuleRepository eligibilityRuleRepository;
     private final SchemeEmbeddingService schemeEmbeddingService;
 
-    public SchemeIngestionService(AnthropicChatModel anthropicChatModel,
+    public SchemeIngestionService(ChatModel chatModel,
                                   RuleValidator ruleValidator,
                                   SchemeRepository schemeRepository,
                                   EligibilityRuleRepository eligibilityRuleRepository,
                                   SchemeEmbeddingService schemeEmbeddingService) {
-        this.chatClient = ChatClient.builder(anthropicChatModel).build();
+        this.chatClient = ChatClient.builder(chatModel).build();
         this.ruleValidator = ruleValidator;
         this.schemeRepository = schemeRepository;
         this.eligibilityRuleRepository = eligibilityRuleRepository;
@@ -88,8 +88,8 @@ public class SchemeIngestionService {
 
         List<EligibilityRule> persistedRules = eligibilityRuleRepository.saveAll(rulesToPersist);
 
-        // Generate and store embeddings for the scheme text fields
-        int embeddedChunkCount = schemeEmbeddingService.embedScheme(scheme);
+        // Generate and store embeddings for the raw scheme text
+        int embeddedChunkCount = schemeEmbeddingService.embedScheme(scheme, schemeText);
 
         // Note: Rejected rules are NOT saved to the database anywhere; they are only logged and returned in the summary.
         return new IngestionSummaryDto(schemeId, persistedRules.size(), validationResult.rejectedRules(), embeddedChunkCount);

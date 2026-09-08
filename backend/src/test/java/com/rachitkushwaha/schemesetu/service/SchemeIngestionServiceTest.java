@@ -9,7 +9,7 @@ import com.rachitkushwaha.schemesetu.repository.SchemeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.springframework.ai.anthropic.AnthropicChatModel;
+import org.springframework.ai.chat.model.ChatModel;
 
 import java.util.List;
 import java.util.Optional;
@@ -23,7 +23,7 @@ class SchemeIngestionServiceTest {
     private SchemeRepository schemeRepository;
     private EligibilityRuleRepository eligibilityRuleRepository;
     private RuleValidator ruleValidator;
-    private AnthropicChatModel anthropicChatModel;
+    private ChatModel chatModel;
     private SchemeEmbeddingService schemeEmbeddingService;
     private SchemeIngestionService schemeIngestionService;
 
@@ -32,11 +32,11 @@ class SchemeIngestionServiceTest {
         schemeRepository = mock(SchemeRepository.class);
         eligibilityRuleRepository = mock(EligibilityRuleRepository.class);
         ruleValidator = new RuleValidator();
-        anthropicChatModel = mock(AnthropicChatModel.class);
+        chatModel = mock(ChatModel.class);
         schemeEmbeddingService = mock(SchemeEmbeddingService.class);
 
         schemeIngestionService = spy(new SchemeIngestionService(
-                anthropicChatModel,
+                chatModel,
                 ruleValidator,
                 schemeRepository,
                 eligibilityRuleRepository,
@@ -51,7 +51,7 @@ class SchemeIngestionServiceTest {
         mockScheme.setId(schemeId);
 
         when(schemeRepository.findById(schemeId)).thenReturn(Optional.of(mockScheme));
-        when(schemeEmbeddingService.embedScheme(mockScheme)).thenReturn(2);
+        when(schemeEmbeddingService.embedScheme(mockScheme, "sample text")).thenReturn(2);
 
         List<ExtractedRuleDto> mockExtracted = List.of(
                 new ExtractedRuleDto("AGE", "BETWEEN", "15,25"),
@@ -69,7 +69,7 @@ class SchemeIngestionServiceTest {
         assertEquals("INCOME_LEVEL", summary.rejectedRules().get(0).rawRule().field());
         assertEquals(2, summary.embeddedChunkCount());
 
-        verify(schemeEmbeddingService).embedScheme(mockScheme);
+        verify(schemeEmbeddingService).embedScheme(mockScheme, "sample text");
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<EligibilityRule>> captor = ArgumentCaptor.forClass(List.class);
