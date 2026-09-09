@@ -56,11 +56,7 @@ public class CitizenSchemeController {
             List<Document> docs = retrievalService.retrieveContext(scheme.getId(), 5);
             ExplanationDto explanation = explanationService.generateExplanation(scheme, profile, match.matchedRules(), docs, lang);
 
-            List<String> matchedCriteria = match.matchedRules().stream()
-                    .map(r -> r.getField() + " " + r.getOperator() + " " + r.getValue())
-                    .toList();
-
-            responses.add(SchemeMatchResponse.from(scheme, matchedCriteria, explanation, lang));
+            responses.add(SchemeMatchResponse.from(scheme, match.matchedCriteria(), explanation, lang));
         }
 
         return ResponseEntity.ok(responses);

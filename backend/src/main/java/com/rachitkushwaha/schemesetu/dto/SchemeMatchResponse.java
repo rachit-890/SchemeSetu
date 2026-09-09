@@ -13,11 +13,12 @@ public record SchemeMatchResponse(
     String issuingBody,
     String sourceUrl,
     String applicationProcess,
-    List<String> matchedCriteria,
+    List<MatchedCriterionDto> matchedCriteria,
     ExplanationDto explanation,
-    boolean translationAvailable
+    boolean translationAvailable,
+    List<String> requiredDocuments
 ) {
-    public static SchemeMatchResponse from(Scheme scheme, List<String> matchedCriteria, ExplanationDto explanation, String lang) {
+    public static SchemeMatchResponse from(Scheme scheme, List<MatchedCriterionDto> matchedCriteria, ExplanationDto explanation, String lang) {
         String langKey = (lang != null && !lang.isBlank()) ? lang.trim().toLowerCase() : "en";
         boolean isEn = "en".equals(langKey);
 
@@ -35,6 +36,9 @@ public record SchemeMatchResponse(
         String applicationProcess = (langTranslation != null && langTranslation.get("applicationProcess") != null)
                 ? langTranslation.get("applicationProcess") : scheme.getApplicationProcess();
 
+        List<String> requiredDocuments = scheme.getRequiredDocuments() != null ? scheme.getRequiredDocuments() : List.of();
+        List<MatchedCriterionDto> criteria = matchedCriteria != null ? matchedCriteria : List.of();
+
         return new SchemeMatchResponse(
                 scheme.getId(),
                 name,
@@ -43,9 +47,10 @@ public record SchemeMatchResponse(
                 scheme.getIssuingBody(),
                 scheme.getSourceUrl(),
                 applicationProcess,
-                matchedCriteria,
+                criteria,
                 explanation,
-                translationAvailable
+                translationAvailable,
+                requiredDocuments
         );
     }
 }

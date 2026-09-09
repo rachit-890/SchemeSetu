@@ -1,6 +1,7 @@
 package com.rachitkushwaha.schemesetu.service;
 
 import com.rachitkushwaha.schemesetu.dto.CitizenProfile;
+import com.rachitkushwaha.schemesetu.dto.MatchedCriterionDto;
 import com.rachitkushwaha.schemesetu.entity.EligibilityRule;
 import com.rachitkushwaha.schemesetu.entity.Scheme;
 import org.springframework.stereotype.Component;
@@ -12,7 +13,11 @@ import java.util.List;
 @Component
 public class RuleMatchingEngine {
 
-    public record SchemeMatch(Scheme scheme, List<EligibilityRule> matchedRules) {}
+    public record SchemeMatch(Scheme scheme, List<EligibilityRule> matchedRules, List<MatchedCriterionDto> matchedCriteria) {
+        public SchemeMatch(Scheme scheme, List<EligibilityRule> matchedRules) {
+            this(scheme, matchedRules, List.of());
+        }
+    }
 
     public List<SchemeMatch> findMatchingSchemes(CitizenProfile profile, List<Scheme> candidateSchemes) {
         if (candidateSchemes == null || candidateSchemes.isEmpty() || profile == null) {
@@ -29,10 +34,18 @@ public class RuleMatchingEngine {
 
             boolean allMatch = true;
             List<EligibilityRule> matchedRules = new ArrayList<>();
+            List<MatchedCriterionDto> matchedCriteria = new ArrayList<>();
 
             for (EligibilityRule rule : activeRules) {
                 if (matchesRule(profile, rule)) {
                     matchedRules.add(rule);
+                    String actualVal = getActualValueString(profile, rule.getField());
+                    matchedCriteria.add(new MatchedCriterionDto(
+                            rule.getField(),
+                            rule.getOperator(),
+                            rule.getValue(),
+                            actualVal
+                    ));
                 } else {
                     allMatch = false;
                     break;
@@ -40,11 +53,39 @@ public class RuleMatchingEngine {
             }
 
             if (allMatch) {
-                matches.add(new SchemeMatch(scheme, matchedRules));
+                matches.add(new SchemeMatch(scheme, matchedRules, matchedCriteria));
             }
         }
 
         return matches;
+    }
+
+    private String getActualValueString(CitizenProfile profile, String field) {
+        if (profile == null || field == null) {
+            return "";
+        }
+        return switch (field.toUpperCase()) {
+            case "AGE" -> profile.age() != null ? String.valueOf(profile.age()) : "";
+            case "MONTHLY_INCOME" -> {
+                if (profile.monthlyIncome() == null) yield "";
+                if (profile.monthlyIncome() == Math.floor(profile.monthlyIncome()) && !Double.isInfinite(profile.monthlyIncome())) {
+                    yield String.valueOf(profile.monthlyIncome().longValue());
+                }
+                yield String.valueOf(profile.monthlyIncome());
+            }
+            case "LAND_HOLDING_ACRES" -> {
+                if (profile.landHoldingAcres() == null) yield "";
+                if (profile.landHoldingAcres() == Math.floor(profile.landHoldingAcres()) && !Double.isInfinite(profile.landHoldingAcres())) {
+                    yield String.valueOf(profile.landHoldingAcres().longValue());
+                }
+                yield String.valueOf(profile.landHoldingAcres());
+            }
+            case "STATE" -> profile.state() != null ? profile.state() : "";
+            case "CASTE_CATEGORY" -> profile.casteCategory() != null ? profile.casteCategory() : "";
+            case "OCCUPATION" -> profile.occupation() != null ? profile.occupation() : "";
+            case "GENDER" -> profile.gender() != null ? profile.gender() : "";
+            default -> "";
+        };
     }
 
     private boolean matchesRule(CitizenProfile profile, EligibilityRule rule) {

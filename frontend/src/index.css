@@ -1,7 +1,25 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: 'Inter', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --color-primary-navy: #111827;
+  --color-gov-green: #059669;
+  --color-gov-green-hover: #047857;
+  --color-gov-green-light: #ECFDF5;
+  --color-gov-green-border: #A7F3D0;
+  --color-app-bg: #F8FAFC;
+  --color-card-bg: #FFFFFF;
+  --color-border-subtle: #E5E7EB;
+}
+
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 antialiased min-h-screen font-sans;
+    background-color: #F8FAFC;
+    color: #111827;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
   }
 }
+

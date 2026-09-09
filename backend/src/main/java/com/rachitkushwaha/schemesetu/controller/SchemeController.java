@@ -1,5 +1,6 @@
 package com.rachitkushwaha.schemesetu.controller;
 
+import com.rachitkushwaha.schemesetu.dto.CreateSchemeRequest;
 import com.rachitkushwaha.schemesetu.dto.IngestRequestDto;
 import com.rachitkushwaha.schemesetu.dto.IngestionSummaryDto;
 import com.rachitkushwaha.schemesetu.dto.PendingRuleDto;
@@ -8,10 +9,13 @@ import com.rachitkushwaha.schemesetu.entity.Scheme;
 import com.rachitkushwaha.schemesetu.service.SchemeIngestionService;
 import com.rachitkushwaha.schemesetu.service.SchemeService;
 import com.rachitkushwaha.schemesetu.service.SchemeTranslationService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -49,8 +53,8 @@ public class SchemeController {
     }
 
     @PostMapping
-    public ResponseEntity<Scheme> createScheme(@RequestBody Scheme scheme) {
-        Scheme created = schemeService.createScheme(scheme);
+    public ResponseEntity<Scheme> createScheme(@Valid @RequestBody CreateSchemeRequest request) {
+        Scheme created = schemeService.createScheme(request.toEntity());
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
@@ -126,5 +130,17 @@ public class SchemeController {
         } catch (IllegalStateException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
         }
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
+        Map<String, String> errors = new HashMap<>();
+        ex.getBindingResult().getFieldErrors().forEach(error ->
+                errors.put(error.getField(), error.getDefaultMessage())
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "error", "Validation failed",
+                "details", errors
+        ));
     }
 }

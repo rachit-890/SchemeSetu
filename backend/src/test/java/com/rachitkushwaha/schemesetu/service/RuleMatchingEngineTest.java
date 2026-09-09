@@ -1,6 +1,7 @@
 package com.rachitkushwaha.schemesetu.service;
 
 import com.rachitkushwaha.schemesetu.dto.CitizenProfile;
+import com.rachitkushwaha.schemesetu.dto.MatchedCriterionDto;
 import com.rachitkushwaha.schemesetu.entity.EligibilityRule;
 import com.rachitkushwaha.schemesetu.entity.Scheme;
 import org.junit.jupiter.api.BeforeEach;
@@ -108,6 +109,23 @@ class RuleMatchingEngineTest {
 
         assertEquals(1, matches.size());
         assertEquals(3, matches.get(0).matchedRules().size());
+        List<MatchedCriterionDto> criteria = matches.get(0).matchedCriteria();
+        assertEquals(3, criteria.size());
+
+        assertEquals("AGE", criteria.get(0).field());
+        assertEquals("BETWEEN", criteria.get(0).operator());
+        assertEquals("18,60", criteria.get(0).ruleValue());
+        assertEquals("25", criteria.get(0).actualValue());
+
+        assertEquals("STATE", criteria.get(1).field());
+        assertEquals("EQ", criteria.get(1).operator());
+        assertEquals("Uttar Pradesh", criteria.get(1).ruleValue());
+        assertEquals("Uttar Pradesh", criteria.get(1).actualValue());
+
+        assertEquals("MONTHLY_INCOME", criteria.get(2).field());
+        assertEquals("LTE", criteria.get(2).operator());
+        assertEquals("15000", criteria.get(2).ruleValue());
+        assertEquals("12000", criteria.get(2).actualValue());
     }
 
     @Test

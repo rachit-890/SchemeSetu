@@ -188,13 +188,9 @@ public class QuestionnaireService {
             List<Document> docs = retrievalService.retrieveContext(scheme.getId(), 5);
             ExplanationDto explanation = explanationService.generateExplanation(scheme, profile, match.matchedRules(), docs, lang);
 
-            List<String> matchedCriteriaStrings = match.matchedRules().stream()
-                    .map(r -> r.getField() + " " + r.getOperator() + " " + r.getValue())
-                    .toList();
-
             return SchemeMatchResponse.from(
                     scheme,
-                    matchedCriteriaStrings,
+                    match.matchedCriteria(),
                     explanation,
                     lang
             );

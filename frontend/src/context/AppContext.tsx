@@ -14,6 +14,7 @@ interface AppContextType {
   questionIndex: number;
   history: AnswerHistoryItem[];
   results: MatchedSchemeDto[];
+  hasCompletedQuestionnaire: boolean;
   isTranslatingResults: boolean;
   setSession: (sessionId: number, question: QuestionDto | null) => void;
   setCurrentQuestion: (question: QuestionDto | null, index?: number) => void;
@@ -32,6 +33,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [questionIndex, setQuestionIndex] = useState<number>(1);
   const [history, setHistory] = useState<AnswerHistoryItem[]>([]);
   const [results, setResultsState] = useState<MatchedSchemeDto[]>([]);
+  const [hasCompletedQuestionnaire, setHasCompletedQuestionnaire] = useState<boolean>(false);
   const [isTranslatingResults, setIsTranslatingResults] = useState<boolean>(false);
 
   // Client-side results cache keyed by language ('en' | 'hi') to prevent repeated LLM calls on toggle
@@ -42,6 +44,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const setResults = useCallback((newResults: MatchedSchemeDto[], targetLang?: Language) => {
     const effectiveLang = targetLang || lang;
     setResultsState(newResults);
+    setHasCompletedQuestionnaire(true);
     if (newResults && newResults.length > 0) {
       resultsCacheRef.current = {
         ...resultsCacheRef.current,
@@ -56,6 +59,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setQuestionIndex(1);
     setHistory([]);
     setResultsState([]);
+    setHasCompletedQuestionnaire(false);
     resultsCacheRef.current = {};
   };
 
@@ -83,6 +87,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setQuestionIndex(1);
     setHistory([]);
     setResultsState([]);
+    setHasCompletedQuestionnaire(false);
     resultsCacheRef.current = {};
   };
 
@@ -154,6 +159,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         questionIndex,
         history,
         results,
+        hasCompletedQuestionnaire,
         isTranslatingResults,
         setSession,
         setCurrentQuestion,

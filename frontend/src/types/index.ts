@@ -13,6 +13,13 @@ export interface ExplanationDto {
   usedFallback: boolean;
 }
 
+export interface MatchedCriterionDto {
+  field: string;
+  operator: string;
+  ruleValue: string;
+  actualValue: string;
+}
+
 export interface MatchedSchemeDto {
   schemeId: number;
   schemeName: string;
@@ -21,9 +28,10 @@ export interface MatchedSchemeDto {
   issuingBody: string;
   sourceUrl: string;
   applicationProcess?: string;
-  matchedCriteria: string[];
+  matchedCriteria: (MatchedCriterionDto | string)[];
   explanation: ExplanationDto;
   translationAvailable: boolean;
+  requiredDocuments?: string[];
 }
 
 export interface QuestionnaireStartResponse {

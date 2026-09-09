@@ -48,6 +48,10 @@ public class Scheme {
     @Column(name = "translations", columnDefinition = "jsonb")
     private Map<String, Map<String, String>> translations = new HashMap<>();
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "required_documents", columnDefinition = "jsonb")
+    private List<String> requiredDocuments = new ArrayList<>();
+
     @OneToMany(mappedBy = "scheme", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<EligibilityRule> rules = new ArrayList<>();
 
@@ -175,6 +179,14 @@ public class Scheme {
 
     public void setTranslations(Map<String, Map<String, String>> translations) {
         this.translations = translations;
+    }
+
+    public List<String> getRequiredDocuments() {
+        return requiredDocuments != null ? requiredDocuments : new ArrayList<>();
+    }
+
+    public void setRequiredDocuments(List<String> requiredDocuments) {
+        this.requiredDocuments = requiredDocuments != null ? requiredDocuments : new ArrayList<>();
     }
 
     public void addRule(EligibilityRule rule) {

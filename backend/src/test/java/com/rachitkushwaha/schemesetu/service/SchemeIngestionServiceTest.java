@@ -59,6 +59,7 @@ class SchemeIngestionServiceTest {
         );
 
         doReturn(mockExtracted).when(schemeIngestionService).extractEligibilityRules(anyString());
+        doReturn(List.of("Class 12 marksheet", "Income certificate")).when(schemeIngestionService).extractRequiredDocuments(anyString());
         when(eligibilityRuleRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         IngestionSummaryDto summary = schemeIngestionService.ingestSchemeRules(schemeId, "sample text");
@@ -69,6 +70,8 @@ class SchemeIngestionServiceTest {
         assertEquals("INCOME_LEVEL", summary.rejectedRules().get(0).rawRule().field());
         assertEquals(2, summary.embeddedChunkCount());
 
+        verify(schemeRepository).save(mockScheme);
+        assertEquals(List.of("Class 12 marksheet", "Income certificate"), mockScheme.getRequiredDocuments());
         verify(schemeEmbeddingService).embedScheme(mockScheme, "sample text");
 
         @SuppressWarnings("unchecked")
@@ -84,5 +87,15 @@ class SchemeIngestionServiceTest {
         assertEquals("PENDING_REVIEW", savedRule.getStatus());
         assertNull(savedRule.getId());
         assertEquals(mockScheme, savedRule.getScheme());
+    }
+
+    @Test
+    void testExtractRequiredDocumentsFallbackOnException() {
+        // Calling real extractRequiredDocuments with a mock chatModel that throws returns empty list gracefully
+        when(chatModel.call(any(org.springframework.ai.chat.prompt.Prompt.class))).thenThrow(new RuntimeException("LLM service unavailable"));
+
+        List<String> docs = schemeIngestionService.extractRequiredDocuments("Some scheme text");
+        assertNotNull(docs);
+        assertTrue(docs.isEmpty());
     }
 }

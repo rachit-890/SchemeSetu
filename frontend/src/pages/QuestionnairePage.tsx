@@ -3,6 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { api } from '../services/api';
 import { INDIAN_STATES, QUESTION_METADATA } from '../utils/constants';
+import { STATE_TRANSLATIONS } from '../utils/criteriaFormatter';
+
+// Cosmetic submission status messages cycled purely on client timer while awaiting single backend response
+const COSMETIC_SUBMISSION_MESSAGES = {
+  en: [
+    'Evaluating eligibility rules...',
+    'Checking matching welfare schemes...',
+    'Preparing your personalized results...',
+  ],
+  hi: [
+    'पात्रता नियमों का मूल्यांकन किया जा रहा है...',
+    'मेल खाती सरकारी योजनाओं की जांच हो रही है...',
+    'आपके परिणाम तैयार किए जा रहे हैं...',
+  ],
+};
+
 import {
   ArrowLeft,
   ArrowRight,
@@ -49,6 +65,22 @@ export const QuestionnairePage: React.FC = () => {
   // Read-only history browsing state (index into history array, null when on current active question)
   const [viewingHistoryIndex, setViewingHistoryIndex] = useState<number | null>(null);
 
+  // Cosmetic progress message index cycled purely on client timer while awaiting API response (single request/response)
+  const [submissionCosmeticStep, setSubmissionCosmeticStep] = useState(0);
+
+  useEffect(() => {
+    let intervalId: any;
+    if (submitting) {
+      setSubmissionCosmeticStep(0);
+      intervalId = setInterval(() => {
+        setSubmissionCosmeticStep((prev) => (prev + 1) % 3);
+      }, 1200);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [submitting]);
+
   // Initialize session if opened directly without a session
   useEffect(() => {
     if (!sessionId || !currentQuestion) {
@@ -61,7 +93,9 @@ export const QuestionnairePage: React.FC = () => {
         } catch (err: any) {
           setErrorMessage(
             err?.message ||
-              'Could not connect to the questionnaire service. Please ensure the backend server is running.'
+              (lang === 'hi'
+                ? 'प्रश्नावली सेवा से कनेक्ट नहीं हो सका। कृपया सुनिश्चित करें कि बैकएंड सर्वर चल रहा है।'
+                : 'Could not connect to the questionnaire service. Please ensure the backend server is running.')
           );
         } finally {
           setLoadingInitial(false);
@@ -88,7 +122,10 @@ export const QuestionnairePage: React.FC = () => {
       const res = await api.startQuestionnaire(lang);
       setSession(res.sessionId, res.question);
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Failed to start a new questionnaire session.');
+      setErrorMessage(
+        err?.message ||
+          (lang === 'hi' ? 'नया सत्र प्रारंभ करने में विफल।' : 'Failed to start a new questionnaire session.')
+      );
     } finally {
       setLoadingInitial(false);
     }
@@ -130,7 +167,7 @@ export const QuestionnairePage: React.FC = () => {
     }
 
     if (!sessionId || !currentQuestion) {
-      setErrorMessage('No active questionnaire session.');
+      setErrorMessage(lang === 'hi' ? 'कोई सक्रिय प्रश्नावली सत्र नहीं है।' : 'No active questionnaire session.');
       return;
     }
 
@@ -165,7 +202,12 @@ export const QuestionnairePage: React.FC = () => {
         navigate('/results');
       }
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Failed to submit answer. Please try again.');
+      setErrorMessage(
+        err?.message ||
+          (lang === 'hi'
+            ? 'उत्तर जमा करने में त्रुटि हुई। कृपया पुनः प्रयास करें।'
+            : 'Failed to submit answer. Please try again.')
+      );
     } finally {
       setSubmitting(false);
     }
@@ -175,8 +217,8 @@ export const QuestionnairePage: React.FC = () => {
   if (loadingInitial) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-[60vh]">
-        <div className="flex flex-col items-center gap-3 text-slate-600">
-          <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+        <div className="flex flex-col items-center gap-3 text-gray-600">
+          <Loader2 className="w-8 h-8 animate-spin text-[#059669]" />
           <p className="text-sm font-medium">
             {lang === 'hi' ? 'प्रश्नावली लोड हो रही है...' : 'Initializing Questionnaire...'}
           </p>
@@ -216,25 +258,25 @@ export const QuestionnairePage: React.FC = () => {
   );
 
   return (
-    <div className="flex-1 bg-slate-50 py-8 sm:py-12">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6">
+    <div className="flex-1 flex flex-col justify-center bg-[#F8FAFC] py-6 sm:py-10">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 w-full">
 
         {/* 1. TOP PROGRESS BAR & HEADER */}
         <div className="mb-6 space-y-2">
-          <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
-            <span className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200/60">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <div className="flex items-center justify-between text-xs font-semibold text-gray-600">
+            <span className="flex items-center gap-1.5 text-[#059669] bg-[#ECFDF5] px-2.5 py-1 rounded-md border border-[#A7F3D0]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#059669] animate-pulse" />
               {ui.questionProgress.replace('{current}', String(activeDisplayQuestionNumber))}
             </span>
-            <span className="text-slate-400 font-mono text-[11px]">
+            <span className="text-gray-400 font-mono text-[11px]">
               {progressPercent}% {lang === 'hi' ? 'पूर्ण' : 'Complete'}
             </span>
           </div>
 
           {/* Progress Bar Line */}
-          <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+          <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
             <div
-              className="h-full bg-emerald-500 transition-all duration-300 ease-out rounded-full"
+              className="h-full bg-[#059669] transition-all duration-300 ease-out rounded-full"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
@@ -242,13 +284,13 @@ export const QuestionnairePage: React.FC = () => {
 
         {/* 2. READ-ONLY HISTORY BANNER (If viewing past answers) */}
         {isBrowsingHistory && (
-          <div className="mb-4 p-4 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-900 text-xs sm:text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="mb-4 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
             <div>
-              <p className="font-bold flex items-center gap-1.5 text-amber-800">
+              <p className="font-semibold flex items-center gap-1.5 text-amber-800">
                 <Clock className="w-4 h-4" />
                 <span>{ui.viewingHistory}</span>
               </p>
-              <p className="text-[11px] text-amber-700 mt-0.5">
+              <p className="text-[11px] text-amber-700 mt-0.5 font-normal">
                 {lang === 'hi'
                   ? 'यह पहले दिया गया उत्तर है। उत्तर बदलने के लिए "पुनः प्रारंभ करें" दबाएं।'
                   : 'This answer is recorded in the session. To modify answers, click "Start Over".'}
@@ -256,7 +298,7 @@ export const QuestionnairePage: React.FC = () => {
             </div>
             <button
               onClick={handleReturnToActive}
-              className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-amber-200/80 hover:bg-amber-300 text-amber-900 font-medium text-xs transition-colors shrink-0 cursor-pointer"
+              className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-md bg-amber-200/80 hover:bg-amber-300 text-amber-900 font-medium text-xs transition-colors shrink-0 cursor-pointer"
             >
               <span>{ui.returnToCurrent}</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -266,39 +308,56 @@ export const QuestionnairePage: React.FC = () => {
 
         {/* 3. ERROR BANNER */}
         {errorMessage && (
-          <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-2.5 animate-shake">
+          <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-2.5 animate-shake shadow-xs">
             <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="font-semibold">{lang === 'hi' ? 'त्रुटि' : 'Notice'}</p>
-              <p className="text-xs text-red-600 mt-0.5">{errorMessage}</p>
+              <p className="text-xs text-red-600 mt-0.5 font-normal">{errorMessage}</p>
             </div>
           </div>
         )}
 
         {/* 4. MAIN QUESTION CARD */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 sm:p-8 space-y-6">
+        <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-xs p-6 sm:p-8 space-y-6">
 
           {/* Question Title */}
           <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
               {lang === 'hi' ? `प्रश्न ${activeDisplayQuestionNumber}` : `Question ${activeDisplayQuestionNumber}`}
             </span>
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight mt-1">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#111827] tracking-tight mt-1">
               {questionTitle || (lang === 'hi' ? 'प्रश्न लोड हो रहा है...' : 'Loading question...')}
             </h2>
           </div>
 
           {/* READ-ONLY VIEW for History */}
           {isBrowsingHistory ? (
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-              <span className="text-xs text-slate-500 font-medium">
+            <div className="p-4 rounded-lg bg-gray-50 border border-[#E5E7EB] space-y-2">
+              <span className="text-xs text-gray-500 font-normal">
                 {lang === 'hi' ? 'दर्ज किया गया उत्तर:' : 'Submitted Answer:'}
               </span>
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 text-sm font-semibold">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#ECFDF5] border border-[#A7F3D0] text-[#059669] text-sm font-medium">
                   <Check className="w-4 h-4" />
                   {history[viewingHistoryIndex].value}
                 </span>
+              </div>
+            </div>
+          ) : submitting ? (
+            /* COSMETIC SUBMISSION LOADING CARD (Purely cosmetic client-side status hints while awaiting single API response) */
+            <div className="py-10 px-4 rounded-xl bg-gray-50/80 border border-[#E5E7EB] text-center space-y-4 flex flex-col items-center justify-center">
+              <div className="w-12 h-12 rounded-full bg-[#ECFDF5] border border-[#A7F3D0] flex items-center justify-center text-[#059669]">
+                <Loader2 className="w-6 h-6 animate-spin text-[#059669]" />
+              </div>
+              <div className="space-y-1.5 max-w-sm">
+                <p className="text-sm font-semibold text-[#111827] transition-all duration-300">
+                  {COSMETIC_SUBMISSION_MESSAGES[lang][submissionCosmeticStep]}
+                </p>
+                <p className="text-xs text-gray-500 font-normal leading-relaxed">
+                  {lang === 'hi'
+                    ? 'कृपया प्रतीक्षा करें, पात्रता का मूल्यांकन किया जा रहा है...'
+                    : 'Please wait while your answers are evaluated against official scheme criteria...'}
+                </p>
               </div>
             </div>
           ) : (
@@ -317,25 +376,25 @@ export const QuestionnairePage: React.FC = () => {
                       key={option.val}
                       type="button"
                       onClick={() => setCurrentValue(option.val)}
-                      className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-3 ${
+                      className={`p-4 rounded-lg border text-left transition-colors cursor-pointer flex flex-col justify-between gap-3 ${
                         currentValue === option.val
-                          ? 'border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20 text-slate-900 shadow-2xs'
-                          : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
+                          ? 'border-[#059669] bg-[#ECFDF5] text-[#111827] shadow-xs'
+                          : 'border-[#E5E7EB] bg-white hover:border-gray-300 text-gray-700'
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <User className={`w-5 h-5 ${currentValue === option.val ? 'text-emerald-600' : 'text-slate-400'}`} />
+                        <User className={`w-5 h-5 ${currentValue === option.val ? 'text-[#059669]' : 'text-gray-400'}`} />
                         <div
                           className={`w-4 h-4 rounded-full border flex items-center justify-center ${
                             currentValue === option.val
-                              ? 'border-emerald-600 bg-emerald-600'
-                              : 'border-slate-300 bg-white'
+                              ? 'border-[#059669] bg-[#059669]'
+                              : 'border-gray-300 bg-white'
                           }`}
                         >
                           {currentValue === option.val && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
                         </div>
                       </div>
-                      <span className="font-semibold text-sm">
+                      <span className="font-medium text-sm">
                         {lang === 'hi' ? option.labelHi : option.labelEn}
                       </span>
                     </button>
@@ -357,20 +416,20 @@ export const QuestionnairePage: React.FC = () => {
                       key={option.val}
                       type="button"
                       onClick={() => setCurrentValue(option.val)}
-                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                      className={`p-3.5 rounded-lg border text-left transition-colors cursor-pointer flex items-center justify-between gap-2 ${
                         currentValue === option.val
-                          ? 'border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20 text-slate-900 shadow-2xs'
-                          : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
+                          ? 'border-[#059669] bg-[#ECFDF5] text-[#111827] shadow-xs'
+                          : 'border-[#E5E7EB] bg-white hover:border-gray-300 text-gray-700'
                       }`}
                     >
-                      <span className="font-semibold text-xs sm:text-sm">
+                      <span className="font-medium text-xs sm:text-sm">
                         {lang === 'hi' ? option.labelHi : option.labelEn}
                       </span>
                       <div
                         className={`w-4 h-4 rounded-full border shrink-0 flex items-center justify-center ${
                           currentValue === option.val
-                            ? 'border-emerald-600 bg-emerald-600'
-                            : 'border-slate-300 bg-white'
+                            ? 'border-[#059669] bg-[#059669]'
+                            : 'border-gray-300 bg-white'
                         }`}
                       >
                         {currentValue === option.val && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
@@ -398,23 +457,23 @@ export const QuestionnairePage: React.FC = () => {
                         key={option.val}
                         type="button"
                         onClick={() => setCurrentValue(option.val)}
-                        className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                        className={`p-3.5 rounded-lg border text-left transition-colors cursor-pointer flex items-center justify-between gap-3 ${
                           currentValue === option.val
-                            ? 'border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20 text-slate-900 shadow-2xs'
-                            : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
+                            ? 'border-[#059669] bg-[#ECFDF5] text-[#111827] shadow-xs'
+                            : 'border-[#E5E7EB] bg-white hover:border-gray-300 text-gray-700'
                         }`}
                       >
                         <div className="flex items-center gap-2.5">
-                          <IconComp className={`w-4 h-4 ${currentValue === option.val ? 'text-emerald-600' : 'text-slate-400'}`} />
-                          <span className="font-semibold text-xs sm:text-sm">
+                          <IconComp className={`w-4 h-4 ${currentValue === option.val ? 'text-[#059669]' : 'text-gray-400'}`} />
+                          <span className="font-medium text-xs sm:text-sm">
                             {lang === 'hi' ? option.labelHi : option.labelEn}
                           </span>
                         </div>
                         <div
                           className={`w-4 h-4 rounded-full border shrink-0 flex items-center justify-center ${
                             currentValue === option.val
-                              ? 'border-emerald-600 bg-emerald-600'
-                              : 'border-slate-300 bg-white'
+                              ? 'border-[#059669] bg-[#059669]'
+                              : 'border-gray-300 bg-white'
                           }`}
                         >
                           {currentValue === option.val && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
@@ -428,46 +487,54 @@ export const QuestionnairePage: React.FC = () => {
               {/* INPUT TYPE: STATE */}
               {activeFieldName === 'state' && (
                 <div className="space-y-3">
-                  <label className="block text-xs font-semibold text-slate-600">
+                  <label className="block text-xs font-medium text-gray-600">
                     {lang === 'hi' ? 'राज्य या केंद्र शासित प्रदेश चुनें:' : 'Select your State or Union Territory:'}
                   </label>
                   <select
                     value={currentValue}
                     onChange={(e) => setCurrentValue(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm font-medium focus:outline-hidden focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all cursor-pointer"
+                    className="w-full px-3.5 py-2.5 rounded-md border border-[#E5E7EB] bg-white text-[#111827] text-sm font-medium focus:outline-hidden focus:border-[#059669] focus:ring-1 focus:ring-[#059669] transition-colors cursor-pointer"
                   >
                     <option value="">
                       {lang === 'hi' ? '-- राज्य चुनें --' : '-- Select State --'}
                     </option>
-                    {INDIAN_STATES.map((stateName) => (
-                      <option key={stateName} value={stateName}>
-                        {stateName}
-                      </option>
-                    ))}
+                    {INDIAN_STATES.map((stateName) => {
+                      const stateHi = STATE_TRANSLATIONS[stateName.toUpperCase()]?.hi;
+                      return (
+                        <option key={stateName} value={stateName}>
+                          {lang === 'hi' && stateHi ? stateHi : stateName}
+                        </option>
+                      );
+                    })}
                   </select>
 
                   {/* Featured Quick State Chips */}
                   <div className="pt-2">
-                    <span className="text-[11px] text-slate-400 font-medium block mb-1.5">
+                    <span className="text-[11px] text-gray-400 font-normal block mb-1.5">
                       {lang === 'hi' ? 'त्वरित चयन:' : 'Quick Select:'}
                     </span>
                     <div className="flex flex-wrap gap-1.5">
-                      {['Uttar Pradesh', 'Maharashtra', 'Bihar', 'Madhya Pradesh', 'Rajasthan', 'Delhi'].map(
-                        (st) => (
-                          <button
-                            key={st}
-                            type="button"
-                            onClick={() => setCurrentValue(st)}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                              currentValue === st
-                                ? 'bg-emerald-600 text-white'
-                                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                            }`}
-                          >
-                            {st}
-                          </button>
-                        )
-                      )}
+                      {[
+                        { val: 'Uttar Pradesh', labelHi: 'उत्तर प्रदेश', labelEn: 'Uttar Pradesh' },
+                        { val: 'Maharashtra', labelHi: 'महाराष्ट्र', labelEn: 'Maharashtra' },
+                        { val: 'Bihar', labelHi: 'बिहार', labelEn: 'Bihar' },
+                        { val: 'Madhya Pradesh', labelHi: 'मध्य प्रदेश', labelEn: 'Madhya Pradesh' },
+                        { val: 'Rajasthan', labelHi: 'राजस्थान', labelEn: 'Rajasthan' },
+                        { val: 'Delhi', labelHi: 'दिल्ली', labelEn: 'Delhi' },
+                      ].map((st) => (
+                        <button
+                          key={st.val}
+                          type="button"
+                          onClick={() => setCurrentValue(st.val)}
+                          className={`px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${
+                            currentValue === st.val
+                              ? 'bg-[#059669] text-white'
+                              : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                          }`}
+                        >
+                          {lang === 'hi' ? st.labelHi : st.labelEn}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -484,17 +551,17 @@ export const QuestionnairePage: React.FC = () => {
                       value={currentValue}
                       onChange={(e) => setCurrentValue(e.target.value)}
                       placeholder={lang === 'hi' ? 'उदा. 24' : 'e.g. 24'}
-                      className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-base font-semibold focus:outline-hidden focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                      className="w-full px-3.5 py-2.5 rounded-md border border-[#E5E7EB] bg-white text-[#111827] text-base font-semibold focus:outline-hidden focus:border-[#059669] focus:ring-1 focus:ring-[#059669] transition-colors"
                       autoFocus
                     />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">
                       {lang === 'hi' ? 'वर्ष' : 'Years'}
                     </span>
                   </div>
 
                   {/* Quick Age Chips */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[11px] text-slate-400 font-medium">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[11px] text-gray-400 font-normal">
                       {lang === 'hi' ? 'त्वरित विकल्प:' : 'Quick choices:'}
                     </span>
                     {['18', '21', '25', '35', '50', '60'].map((ageOption) => (
@@ -502,10 +569,10 @@ export const QuestionnairePage: React.FC = () => {
                         key={ageOption}
                         type="button"
                         onClick={() => setCurrentValue(ageOption)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                        className={`px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${
                           currentValue === ageOption
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                            ? 'bg-[#059669] text-white'
+                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                         }`}
                       >
                         {ageOption} {lang === 'hi' ? 'वर्ष' : 'yrs'}
@@ -519,7 +586,7 @@ export const QuestionnairePage: React.FC = () => {
               {activeFieldName === 'monthlyIncome' && (
                 <div className="space-y-4">
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-bold text-slate-400">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-base font-medium text-gray-400">
                       ₹
                     </span>
                     <input
@@ -529,37 +596,37 @@ export const QuestionnairePage: React.FC = () => {
                       value={currentValue}
                       onChange={(e) => setCurrentValue(e.target.value)}
                       placeholder={lang === 'hi' ? 'उदा. 15000' : 'e.g. 15000'}
-                      className="w-full pl-9 pr-4 py-3.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-base font-semibold focus:outline-hidden focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                      className="w-full pl-8 pr-3.5 py-2.5 rounded-md border border-[#E5E7EB] bg-white text-[#111827] text-base font-semibold focus:outline-hidden focus:border-[#059669] focus:ring-1 focus:ring-[#059669] transition-colors"
                       autoFocus
                     />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">
                       / {lang === 'hi' ? 'माह' : 'month'}
                     </span>
                   </div>
 
                   {/* Quick Income Chips */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[11px] text-slate-400 font-medium">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[11px] text-gray-400 font-normal">
                       {lang === 'hi' ? 'त्वरित विकल्प:' : 'Quick choices:'}
                     </span>
                     {[
-                      { val: '0', label: '₹0 (No Income)' },
-                      { val: '8000', label: '₹8,000' },
-                      { val: '15000', label: '₹15,000' },
-                      { val: '25000', label: '₹25,000' },
-                      { val: '50000', label: '₹50,000' },
+                      { val: '0', labelEn: '₹0 (No Income)', labelHi: '₹0 (कोई आय नहीं)' },
+                      { val: '8000', labelEn: '₹8,000', labelHi: '₹8,000' },
+                      { val: '15000', labelEn: '₹15,000', labelHi: '₹15,000' },
+                      { val: '25000', labelEn: '₹25,000', labelHi: '₹25,000' },
+                      { val: '50000', labelEn: '₹50,000', labelHi: '₹50,000' },
                     ].map((inc) => (
                       <button
                         key={inc.val}
                         type="button"
                         onClick={() => setCurrentValue(inc.val)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                        className={`px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${
                           currentValue === inc.val
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                            ? 'bg-[#059669] text-white'
+                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                         }`}
                       >
-                        {inc.label}
+                        {lang === 'hi' ? inc.labelHi : inc.labelEn}
                       </button>
                     ))}
                   </div>
@@ -577,36 +644,36 @@ export const QuestionnairePage: React.FC = () => {
                       value={currentValue}
                       onChange={(e) => setCurrentValue(e.target.value)}
                       placeholder={lang === 'hi' ? 'उदा. 2.5' : 'e.g. 2.5'}
-                      className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-base font-semibold focus:outline-hidden focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                      className="w-full px-3.5 py-2.5 rounded-md border border-[#E5E7EB] bg-white text-[#111827] text-base font-semibold focus:outline-hidden focus:border-[#059669] focus:ring-1 focus:ring-[#059669] transition-colors"
                       autoFocus
                     />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">
                       {lang === 'hi' ? 'एकड़' : 'Acres'}
                     </span>
                   </div>
 
                   {/* Quick Land Chips */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[11px] text-slate-400 font-medium">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[11px] text-gray-400 font-normal">
                       {lang === 'hi' ? 'त्वरित विकल्प:' : 'Quick choices:'}
                     </span>
                     {[
-                      { val: '0', label: '0 (Landless / भूमिहीन)' },
-                      { val: '1.0', label: '1 Acre' },
-                      { val: '2.5', label: '2.5 Acres' },
-                      { val: '5.0', label: '5 Acres' },
+                      { val: '0', labelEn: '0 (Landless)', labelHi: '0 (भूमिहीन)' },
+                      { val: '1.0', labelEn: '1 Acre', labelHi: '1 एकड़' },
+                      { val: '2.5', labelEn: '2.5 Acres', labelHi: '2.5 एकड़' },
+                      { val: '5.0', labelEn: '5 Acres', labelHi: '5 एकड़' },
                     ].map((land) => (
                       <button
                         key={land.val}
                         type="button"
                         onClick={() => setCurrentValue(land.val)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                        className={`px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${
                           currentValue === land.val
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                            ? 'bg-[#059669] text-white'
+                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                         }`}
                       >
-                        {land.label}
+                        {lang === 'hi' ? land.labelHi : land.labelEn}
                       </button>
                     ))}
                   </div>
@@ -623,7 +690,7 @@ export const QuestionnairePage: React.FC = () => {
                     value={currentValue}
                     onChange={(e) => setCurrentValue(e.target.value)}
                     placeholder={lang === 'hi' ? 'अपना उत्तर दर्ज करें' : 'Enter your answer'}
-                    className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-base font-medium focus:outline-hidden focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                    className="w-full px-3.5 py-2.5 rounded-md border border-[#E5E7EB] bg-white text-[#111827] text-base font-medium focus:outline-hidden focus:border-[#059669] focus:ring-1 focus:ring-[#059669] transition-colors"
                     autoFocus
                   />
                 </div>
@@ -632,23 +699,23 @@ export const QuestionnairePage: React.FC = () => {
           )}
 
           {/* 5. "WHY WE ASK THIS?" ACCORDION */}
-          <div className="pt-2 border-t border-slate-100">
+          <div className="pt-2 border-t border-gray-100">
             <button
               type="button"
               onClick={() => setShowWhyWeAsk(!showWhyWeAsk)}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-[#111827] transition-colors cursor-pointer"
             >
-              <HelpCircle className="w-3.5 h-3.5 text-emerald-600" />
+              <HelpCircle className="w-3.5 h-3.5 text-[#059669]" />
               <span>{ui.whyWeAsk}</span>
               <ChevronDown
                 className={`w-3.5 h-3.5 transition-transform ${
-                  showWhyWeAsk ? 'rotate-180 text-slate-700' : ''
+                  showWhyWeAsk ? 'rotate-180 text-[#111827]' : ''
                 }`}
               />
             </button>
 
             {showWhyWeAsk && (
-              <div className="mt-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 leading-relaxed">
+              <div className="mt-2.5 p-3 rounded-lg bg-gray-50 border border-[#E5E7EB] text-xs text-gray-600 leading-relaxed font-normal">
                 {whyWeAskText}
               </div>
             )}
@@ -663,7 +730,7 @@ export const QuestionnairePage: React.FC = () => {
               type="button"
               onClick={handleBack}
               disabled={isBrowsingHistory ? viewingHistoryIndex === 0 : history.length === 0}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs sm:text-sm shadow-2xs transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md border border-[#E5E7EB] bg-white hover:bg-gray-50 text-gray-700 font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>{ui.back}</span>
@@ -673,7 +740,7 @@ export const QuestionnairePage: React.FC = () => {
             <button
               type="button"
               onClick={handleStartOver}
-              className="inline-flex items-center gap-1 px-3 py-2.5 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 font-medium text-xs sm:text-sm transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 px-3 py-2 rounded-md text-gray-500 hover:text-[#111827] hover:bg-gray-100 font-medium text-xs sm:text-sm transition-colors cursor-pointer"
               title={lang === 'hi' ? 'शुरुआत से पुनः प्रारंभ करें' : 'Reset and start questionnaire over'}
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -686,31 +753,31 @@ export const QuestionnairePage: React.FC = () => {
             <button
               type="button"
               onClick={handleForwardHistory}
-              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs sm:text-sm shadow-sm transition-all cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2 rounded-md bg-[#111827] hover:bg-gray-800 text-white font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer"
             >
               <span>
                 {viewingHistoryIndex === history.length - 1
                   ? ui.returnToCurrent
                   : ui.continue}
               </span>
-              <ArrowRight className="w-4 h-4 text-emerald-400" />
+              <ArrowRight className="w-4 h-4 text-white" />
             </button>
           ) : (
             <button
               type="button"
               onClick={() => handleSubmit()}
               disabled={submitting || !currentValue.trim()}
-              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-[0.99] text-white font-semibold text-xs sm:text-sm shadow-sm transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2 rounded-md bg-[#059669] hover:bg-[#047857] text-white font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group"
             >
               {submitting ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
                   <span>{ui.submitting}</span>
                 </>
               ) : (
                 <>
                   <span>{ui.continue}</span>
-                  <ArrowRight className="w-4 h-4 text-emerald-400 group-hover:translate-x-0.5 transition-transform" />
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </>
               )}
             </button>

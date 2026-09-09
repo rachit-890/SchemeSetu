@@ -1,5 +1,6 @@
 package com.rachitkushwaha.schemesetu.service;
 
+import com.rachitkushwaha.schemesetu.dto.ExtractedDocumentsDto;
 import com.rachitkushwaha.schemesetu.dto.ExtractedRuleDto;
 import com.rachitkushwaha.schemesetu.dto.IngestionSummaryDto;
 import com.rachitkushwaha.schemesetu.dto.RuleValidationResult;
@@ -7,6 +8,8 @@ import com.rachitkushwaha.schemesetu.entity.EligibilityRule;
 import com.rachitkushwaha.schemesetu.entity.Scheme;
 import com.rachitkushwaha.schemesetu.repository.EligibilityRuleRepository;
 import com.rachitkushwaha.schemesetu.repository.SchemeRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.core.ParameterizedTypeReference;
@@ -17,6 +20,8 @@ import java.util.List;
 
 @Service
 public class SchemeIngestionService {
+
+    private static final Logger log = LoggerFactory.getLogger(SchemeIngestionService.class);
 
     private final ChatClient chatClient;
     private final RuleValidator ruleValidator;
@@ -61,6 +66,35 @@ public class SchemeIngestionService {
                 .entity(new ParameterizedTypeReference<List<ExtractedRuleDto>>() {});
     }
 
+    public List<String> extractRequiredDocuments(String schemeText) {
+        String userPrompt = """
+            Extract all required documents and certificates explicitly mentioned as necessary for applying to this scheme from the raw scheme text below.
+
+            Output a JSON object with a single field "documents" containing a list of strings (e.g. ["Class 12 marksheet", "Income certificate", "Caste certificate", "Bank passbook"]).
+
+            Rules:
+            - Only extract documents, proofs, certificates, or cards explicitly mentioned in the text.
+            - Do not invent or assume standard documents (e.g. do not add Aadhaar or photo unless explicitly stated).
+            - If no required documents are mentioned in the text, return an empty list.
+            - Output valid JSON only, no markdown code fences, no extra commentary.
+
+            Scheme Text:
+            %s
+            """.formatted(schemeText);
+
+        try {
+            ExtractedDocumentsDto result = chatClient.prompt()
+                    .user(userPrompt)
+                    .call()
+                    .entity(ExtractedDocumentsDto.class);
+
+            return result != null && result.documents() != null ? result.documents() : List.of();
+        } catch (Exception e) {
+            log.warn("Failed to extract required documents from scheme text: {}. Falling back to empty documents list.", e.getMessage());
+            return List.of();
+        }
+    }
+
     public RuleValidationResult validateRules(List<ExtractedRuleDto> extractedRules) {
         return ruleValidator.validateRules(extractedRules);
     }
@@ -87,6 +121,11 @@ public class SchemeIngestionService {
                 .toList();
 
         List<EligibilityRule> persistedRules = eligibilityRuleRepository.saveAll(rulesToPersist);
+
+        // Extract and persist required documents directly on the scheme
+        List<String> extractedDocuments = extractRequiredDocuments(schemeText);
+        scheme.setRequiredDocuments(extractedDocuments);
+        schemeRepository.save(scheme);
 
         // Generate and store embeddings for the raw scheme text
         int embeddedChunkCount = schemeEmbeddingService.embedScheme(scheme, schemeText);
