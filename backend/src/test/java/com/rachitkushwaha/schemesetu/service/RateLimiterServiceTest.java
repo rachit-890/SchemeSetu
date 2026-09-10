@@ -66,4 +66,25 @@ class RateLimiterServiceTest {
         );
         assertTrue(ex.getMessage().contains("Rate limit exceeded"));
     }
+
+    @Test
+    void checkAdminRateLimit_under20Requests_allowsOperation() {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getRemoteAddr()).thenReturn("10.0.0.5");
+        when(valueOperations.increment(anyString())).thenReturn(10L);
+
+        assertDoesNotThrow(() -> rateLimiterService.checkAdminRateLimit(request, "ingest"));
+    }
+
+    @Test
+    void checkAdminRateLimit_21stRequest_throwsRateLimitExceededException() {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getRemoteAddr()).thenReturn("10.0.0.5");
+        when(valueOperations.increment(startsWith("rate_limit:admin_ingest:"))).thenReturn(21L);
+
+        RateLimitExceededException ex = assertThrows(RateLimitExceededException.class, () ->
+                rateLimiterService.checkAdminRateLimit(request, "ingest")
+        );
+        assertTrue(ex.getMessage().contains("Admin rate limit exceeded for ingest"));
+    }
 }

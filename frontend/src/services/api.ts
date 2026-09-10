@@ -1,5 +1,7 @@
 import type { Language, QuestionnaireStartResponse, QuestionnaireAnswerResponse, MatchedSchemeDto } from '../types';
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+
 export class ApiError extends Error {
   status: number;
   data: any;
@@ -14,7 +16,7 @@ export class ApiError extends Error {
 
 export const api = {
   async startQuestionnaire(lang: Language): Promise<QuestionnaireStartResponse> {
-    const response = await fetch(`/api/v1/questionnaire/start?lang=${lang}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/questionnaire/start?lang=${lang}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -40,7 +42,7 @@ export const api = {
     value: string,
     lang: Language
   ): Promise<QuestionnaireAnswerResponse> {
-    const response = await fetch(`/api/v1/questionnaire/${sessionId}/answer?lang=${lang}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/questionnaire/${sessionId}/answer?lang=${lang}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -83,7 +85,7 @@ export const api = {
     if (params.landHoldingAcres !== undefined) query.append('landHoldingAcres', params.landHoldingAcres.toString());
     if (params.lang) query.append('lang', params.lang);
 
-    const response = await fetch(`/api/v1/schemes/match?${query.toString()}`);
+    const response = await fetch(`${API_BASE_URL}/api/v1/schemes/match?${query.toString()}`);
     if (!response.ok) {
       throw new ApiError('Failed to fetch matched schemes', response.status);
     }

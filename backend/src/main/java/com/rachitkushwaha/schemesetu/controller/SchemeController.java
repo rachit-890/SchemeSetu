@@ -6,9 +6,12 @@ import com.rachitkushwaha.schemesetu.dto.IngestionSummaryDto;
 import com.rachitkushwaha.schemesetu.dto.PendingRuleDto;
 import com.rachitkushwaha.schemesetu.entity.EligibilityRule;
 import com.rachitkushwaha.schemesetu.entity.Scheme;
+import com.rachitkushwaha.schemesetu.exception.RateLimitExceededException;
+import com.rachitkushwaha.schemesetu.service.RateLimiterService;
 import com.rachitkushwaha.schemesetu.service.SchemeIngestionService;
 import com.rachitkushwaha.schemesetu.service.SchemeService;
 import com.rachitkushwaha.schemesetu.service.SchemeTranslationService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,13 +29,16 @@ public class SchemeController {
     private final SchemeService schemeService;
     private final SchemeIngestionService schemeIngestionService;
     private final SchemeTranslationService schemeTranslationService;
+    private final RateLimiterService rateLimiterService;
 
     public SchemeController(SchemeService schemeService,
                             SchemeIngestionService schemeIngestionService,
-                            SchemeTranslationService schemeTranslationService) {
+                            SchemeTranslationService schemeTranslationService,
+                            RateLimiterService rateLimiterService) {
         this.schemeService = schemeService;
         this.schemeIngestionService = schemeIngestionService;
         this.schemeTranslationService = schemeTranslationService;
+        this.rateLimiterService = rateLimiterService;
     }
 
     @GetMapping
@@ -75,13 +81,20 @@ public class SchemeController {
     }
 
     @PostMapping("/{id}/ingest")
-    public ResponseEntity<?> ingestSchemeRules(@PathVariable Long id, @RequestBody IngestRequestDto request) {
+    public ResponseEntity<?> ingestSchemeRules(
+            @PathVariable Long id,
+            @Valid @RequestBody IngestRequestDto request,
+            HttpServletRequest httpRequest) {
+        rateLimiterService.checkAdminRateLimit(httpRequest, "ingest");
         try {
             String text = (request != null && request.schemeText() != null) ? request.schemeText() : "";
             IngestionSummaryDto summary = schemeIngestionService.ingestSchemeRules(id, text);
             return ResponseEntity.ok(summary);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
+            if (e.getMessage() != null && e.getMessage().contains("Scheme not found")) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             String errorMsg = e.getMessage() != null ? e.getMessage() : "Ingestion processing failed";
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -92,7 +105,9 @@ public class SchemeController {
     @PostMapping("/{id}/translate")
     public ResponseEntity<?> translateScheme(
             @PathVariable Long id,
-            @RequestParam(defaultValue = "hi") String lang) {
+            @RequestParam(defaultValue = "hi") String lang,
+            HttpServletRequest httpRequest) {
+        rateLimiterService.checkAdminRateLimit(httpRequest, "translate");
         if (lang != null && !lang.isBlank() && !"hi".equalsIgnoreCase(lang.trim())) {
             return ResponseEntity.badRequest().body(Map.of("error", "Unsupported translation language: '" + lang + "'. Only 'hi' (Hindi) translation is supported."));
         }
@@ -130,6 +145,11 @@ public class SchemeController {
         } catch (IllegalStateException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
         }
+    }
+
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<Map<String, String>> handleRateLimitExceededException(RateLimitExceededException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of("error", ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

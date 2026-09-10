@@ -2,9 +2,9 @@ spring:
   application:
     name: schemesetu-backend
   datasource:
-    url: jdbc:postgresql://localhost:5432/schemesetu
-    username: postgres
-    password: postgres
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:schemesetu}}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
@@ -50,3 +50,10 @@ spring:
 
 server:
   port: 8080
+
+admin:
+  api-key: ${ADMIN_API_KEY}
+
+cors:
+  allowed-origins: ${FRONTEND_URL:http://localhost:5173,http://localhost:3000}
+

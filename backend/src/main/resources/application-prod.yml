@@ -1,0 +1,21 @@
+# Production Profile Configuration for SchemeSetu
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  jpa:
+    # Disable SQL query logging in production to maintain log privacy and performance
+    show-sql: false
+    hibernate:
+      # Strictly validate database schema against entities; never auto-migrate or alter schema in production
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: false
+
+# Production CORS Configuration:
+# Restricts allowed cross-origin requests to the production frontend domain.
+# Configure via the FRONTEND_URL environment variable (e.g. FRONTEND_URL=https://schemesetu.in or comma-separated domains).
+cors:
+  allowed-origins: ${FRONTEND_URL}

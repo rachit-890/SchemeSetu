@@ -98,4 +98,21 @@ class SchemeIngestionServiceTest {
         assertNotNull(docs);
         assertTrue(docs.isEmpty());
     }
+
+    @Test
+    void testIngestSchemeRules_rejectsBlankSchemeText() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                schemeIngestionService.ingestSchemeRules(1L, "   ")
+        );
+        assertEquals("Scheme text must not be null or blank", ex.getMessage());
+    }
+
+    @Test
+    void testIngestSchemeRules_rejectsOversizedSchemeText() {
+        String oversizedText = "a".repeat(10001);
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                schemeIngestionService.ingestSchemeRules(1L, oversizedText)
+        );
+        assertEquals("Scheme text exceeds maximum allowed length of 10000 characters", ex.getMessage());
+    }
 }

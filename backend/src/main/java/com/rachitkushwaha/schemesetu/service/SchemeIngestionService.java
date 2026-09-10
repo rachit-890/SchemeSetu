@@ -42,6 +42,12 @@ public class SchemeIngestionService {
     }
 
     public List<ExtractedRuleDto> extractEligibilityRules(String schemeText) {
+        if (schemeText == null || schemeText.isBlank()) {
+            throw new IllegalArgumentException("Scheme text must not be null or blank");
+        }
+        if (schemeText.length() > 10000) {
+            throw new IllegalArgumentException("Scheme text exceeds maximum allowed length of 10000 characters");
+        }
         String userPrompt = """
             Extract eligibility rules from the raw scheme text below. Output a JSON list where each object has exactly these fields:
               - field: one of AGE | MONTHLY_INCOME | STATE | CASTE_CATEGORY | OCCUPATION | GENDER | LAND_HOLDING_ACRES
@@ -101,6 +107,13 @@ public class SchemeIngestionService {
 
     @Transactional
     public IngestionSummaryDto ingestSchemeRules(Long schemeId, String schemeText) {
+        if (schemeText == null || schemeText.isBlank()) {
+            throw new IllegalArgumentException("Scheme text must not be null or blank");
+        }
+        if (schemeText.length() > 10000) {
+            throw new IllegalArgumentException("Scheme text exceeds maximum allowed length of 10000 characters");
+        }
+
         Scheme scheme = schemeRepository.findById(schemeId)
                 .orElseThrow(() -> new IllegalArgumentException("Scheme not found with ID: " + schemeId));
 

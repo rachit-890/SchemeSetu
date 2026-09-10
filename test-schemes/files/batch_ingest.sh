@@ -5,6 +5,7 @@
 
 set -e
 BASE_URL="http://localhost:8080/api/v1/admin/schemes"
+ADMIN_KEY="${ADMIN_API_KEY:-dev-admin-key}"
 
 create_and_ingest() {
   local name="$1"
@@ -17,6 +18,7 @@ create_and_ingest() {
   echo "=== Creating: $name ==="
   create_response=$(curl -s -X POST "$BASE_URL" \
     -H "Content-Type: application/json" \
+    -H "X-Admin-Key: $ADMIN_KEY" \
     -d "{\"name\": \"$name\", \"description\": \"$description\", \"category\": \"$category\", \"issuingBody\": \"$issuing_body\", \"sourceUrl\": \"$source_url\", \"status\": \"ACTIVE\"}")
 
   scheme_id=$(echo "$create_response" | jq -r '.id')
@@ -35,15 +37,16 @@ create_and_ingest() {
   echo "=== Ingesting text for scheme $scheme_id ==="
   ingest_result=$(curl -s -X POST "$BASE_URL/$scheme_id/ingest" \
     -H "Content-Type: application/json" \
+    -H "X-Admin-Key: $ADMIN_KEY" \
     -d "{\"schemeText\": $scheme_text}")
 
   echo "$ingest_result" | jq .
 
   echo "=== Auto-approving all PENDING_REVIEW rules for scheme $scheme_id ==="
-  rule_ids=$(curl -s "$BASE_URL/rules/pending" | jq -r ".[] | select(.schemeId==$scheme_id) | .id")
+  rule_ids=$(curl -s -H "X-Admin-Key: $ADMIN_KEY" "$BASE_URL/rules/pending" | jq -r ".[] | select(.schemeId==$scheme_id) | .id")
   for rid in $rule_ids; do
     echo "Approving rule $rid..."
-    curl -s -X POST "$BASE_URL/$scheme_id/rules/$rid/approve" | jq -c .
+    curl -s -X POST "$BASE_URL/$scheme_id/rules/$rid/approve" -H "X-Admin-Key: $ADMIN_KEY" | jq -c .
   done
 
   echo "=== Done: $name (scheme id $scheme_id) ==="
@@ -91,4 +94,4 @@ create_and_ingest \
   "scheme5_pmay_gramin.txt"
 
 echo "=== Batch ingestion complete. Review all pending/active rules: ==="
-curl -s "$BASE_URL/rules/pending" | jq .
+curl -s -H "X-Admin-Key: $ADMIN_KEY" "$BASE_URL/rules/pending" | jq .

@@ -79,6 +79,45 @@ class CitizenSchemeControllerTest {
     }
 
     @Test
+    void matchSchemes_returnsStructuredMatchedCriteriaWithActualValues() {
+        Scheme scheme = new Scheme();
+        scheme.setId(1L);
+        scheme.setName("Kanya Vidyadhan");
+        scheme.setDescription("Support for students");
+
+        EligibilityRule rule1 = new EligibilityRule(scheme, "AGE", "BETWEEN", "15,25", "ACTIVE");
+        EligibilityRule rule2 = new EligibilityRule(scheme, "STATE", "EQ", "Uttar Pradesh", "ACTIVE");
+        com.rachitkushwaha.schemesetu.dto.MatchedCriterionDto crit1 = new com.rachitkushwaha.schemesetu.dto.MatchedCriterionDto("AGE", "BETWEEN", "15,25", "20");
+        com.rachitkushwaha.schemesetu.dto.MatchedCriterionDto crit2 = new com.rachitkushwaha.schemesetu.dto.MatchedCriterionDto("STATE", "EQ", "Uttar Pradesh", "Uttar Pradesh");
+        RuleMatchingEngine.SchemeMatch match = new RuleMatchingEngine.SchemeMatch(scheme, List.of(rule1, rule2), List.of(crit1, crit2));
+
+        when(schemeService.getAllSchemes()).thenReturn(List.of(scheme));
+        when(ruleMatchingEngine.findMatchingSchemes(any(CitizenProfile.class), anyList())).thenReturn(List.of(match));
+        when(retrievalService.retrieveContext(eq(1L), eq(5))).thenReturn(List.of(new Document("Chunk context")));
+        when(explanationService.generateExplanation(any(), any(), anyList(), anyList(), anyString()))
+                .thenReturn(new ExplanationDto("Eligible", List.of("Apply online"), false));
+
+        ResponseEntity<List<SchemeMatchResponse>> response = controller.matchSchemes(
+                20, 15000.0, "Uttar Pradesh", "OBC", "STUDENT", "FEMALE", null, "en"
+        );
+
+        assertNotNull(response);
+        assertEquals(200, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().size());
+
+        SchemeMatchResponse item = response.getBody().get(0);
+        assertNotNull(item.matchedCriteria());
+        assertEquals(2, item.matchedCriteria().size());
+        assertEquals("AGE", item.matchedCriteria().get(0).field());
+        assertEquals("BETWEEN", item.matchedCriteria().get(0).operator());
+        assertEquals("15,25", item.matchedCriteria().get(0).ruleValue());
+        assertEquals("20", item.matchedCriteria().get(0).actualValue());
+        assertEquals("STATE", item.matchedCriteria().get(1).field());
+        assertEquals("Uttar Pradesh", item.matchedCriteria().get(1).actualValue());
+    }
+
+    @Test
     void matchSchemes_withHindiLang_returnsHindiTranslatedContentWhenAvailable() {
         Scheme scheme = new Scheme();
         scheme.setId(1L);
