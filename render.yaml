@@ -7,7 +7,7 @@ services:
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    plan: starter
+    plan: free
     healthCheckPath: /api/v1/schemes
     envVars:
       - key: SPRING_PROFILES_ACTIVE
@@ -25,22 +25,10 @@ services:
       - key: SPRING_DATASOURCE_PASSWORD
         sync: false
       - key: SPRING_DATA_REDIS_HOST
-        fromService:
-          type: pserv
-          name: schemesetu-redis
-          property: host
+        sync: false
       - key: SPRING_DATA_REDIS_PORT
-        fromService:
-          type: pserv
-          name: schemesetu-redis
-          property: port
-
-  # ---------------------------------------------------------------------------
-  # SchemeSetu Redis Private Service
-  # ---------------------------------------------------------------------------
-  - type: pserv
-    name: schemesetu-redis
-    runtime: image
-    image:
-      url: redis:7-alpine
-    plan: starter
+        sync: false
+      - key: SPRING_DATA_REDIS_PASSWORD
+        sync: false
+      - key: SPRING_DATA_REDIS_SSL_ENABLED
+        value: "true"
