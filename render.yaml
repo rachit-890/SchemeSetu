@@ -18,26 +18,12 @@ services:
         sync: false
       - key: FRONTEND_URL
         sync: false
-      - key: DB_HOST
-        fromDatabase:
-          name: schemesetu-db
-          property: host
-      - key: DB_PORT
-        fromDatabase:
-          name: schemesetu-db
-          property: port
-      - key: DB_NAME
-        fromDatabase:
-          name: schemesetu-db
-          property: database
+      - key: SPRING_DATASOURCE_URL
+        sync: false
       - key: SPRING_DATASOURCE_USERNAME
-        fromDatabase:
-          name: schemesetu-db
-          property: user
+        sync: false
       - key: SPRING_DATASOURCE_PASSWORD
-        fromDatabase:
-          name: schemesetu-db
-          property: password
+        sync: false
       - key: SPRING_DATA_REDIS_HOST
         fromService:
           type: pserv
@@ -58,13 +44,3 @@ services:
     image:
       url: redis:7-alpine
     plan: starter
-
-# -----------------------------------------------------------------------------
-# SchemeSetu Managed PostgreSQL Database (with pgvector support)
-# -----------------------------------------------------------------------------
-databases:
-  - name: schemesetu-db
-    databaseName: schemesetu
-    user: schemesetu_user
-    plan: starter
-    postgresMajorVersion: "16"
